@@ -39,7 +39,7 @@ def CreateSideBar(root):
     
     sidebar.pack(side=RIGHT, anchor=N)
     label = Label(sidebar, text="File Properties", width=22, relief=GROOVE).pack()
-    padding = Label(sidebar, text="", width=25).pack(side=BOTTOM)
+    padding = Label(sidebar, text="", width=23).pack(side=BOTTOM)
     return root
 
 def SetFileTitle(file, root):
@@ -92,7 +92,7 @@ def donothing(root):
 
 def aboutrwparser(root):
     filewin = Toplevel(root)
-    filewin.iconbitmap('rwlogo.ico')
+    filewin.iconbitmap('ui/rwlogo.ico')
     filewin.title("About RWParser...")
     w = 350
     h = 150
@@ -104,7 +104,7 @@ def aboutrwparser(root):
     rwparserbuild.config(font=("Segoe UI", 15))
     rwparserbuild.pack(anchor="n")
 
-    description = Label(filewin, text="A multi-porpouse modding tool for Renderware games.")
+    description = Label(filewin, text="A multi-proposal modding tool for Renderware games.")
     description.config(font=("Segoe UI", 10))
     description.pack(anchor="n")
 
@@ -165,22 +165,37 @@ def ImportSection(file):
         Content = BeforeFile + SectionType + ImportLen + RWVersion + HeaderSize + HeaderContent + FileSize + ImportedFile + AfterInsert
         target.write(Content)
 
+
+def CreateProperties():
+
+    padding = Label(sidebar, text="", width=23).pack()
+    secprops = Label(sidebar, text="Section Properties", width=22, relief=GROOVE).pack()
+
+    global secoffsetvar
+    secoffsetvar = StringVar()
+    displaysecsize = Label(sidebar, textvariable=secoffsetvar, padx=12)
+    displaysecsize.config(font=("Segoe UI", 9))
+    displaysecsize.pack(anchor="w")
+    secoffsetvar.set("Offset:")
+
+    global secsizevar
+    secsizevar = StringVar()
+    displaysecsize = Label(sidebar, textvariable=secsizevar, padx=12)
+    displaysecsize.config(font=("Segoe UI", 9))
+    displaysecsize.pack(anchor="w")
+    secsizevar.set("Size:")
+
 def DoubleClick():
+    CreateProperties()
     def GetProperties(event):
         CurSection = seclist.get(seclist.curselection())
-        padding = Label(sidebar, text="", width=25).pack()
-        secprops = Label(sidebar, text="Section Properties", width=22, relief=GROOVE).pack()
-
+        
         sectionoffset = "Offset:", hex(CurSection[1])
-        displaysecsize = Label(sidebar, text=sectionoffset, padx=12)
-        displaysecsize.config(font=("Segoe UI", 9))
-        displaysecsize.pack(anchor="w")
-
+        secoffsetvar.set(sectionoffset)
+        
         sectionsize = "Size:", CurSection[2], "bytes"
-        displaysecsize = Label(sidebar, text=sectionsize, padx=12)
-        displaysecsize.config(font=("Segoe UI", 9))
-        displaysecsize.pack(anchor="w")
-
+        secsizevar.set(sectionsize)
+        
     seclist.bind('<Double-1>', GetProperties)
     seclist.pack()
 
