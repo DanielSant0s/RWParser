@@ -12,6 +12,8 @@ from tkinter.filedialog import asksaveasfile
 
 from rwsrc import rwcore
 
+tempname = "temp.tmp"
+
 def InitializeInterface():
     root = tk.Tk()
     root.iconbitmap('ui/rwlogo.ico')
@@ -93,7 +95,7 @@ def donothing(root):
 def aboutrwparser(root):
     filewin = Toplevel(root)
     filewin.iconbitmap('ui/rwlogo.ico')
-    filewin.title("About RWParser...")
+    filewin.title("About RWParser")
     w = 350
     h = 150
     x = 150
@@ -165,9 +167,7 @@ def ImportSection(file):
         Content = BeforeFile + SectionType + ImportLen + RWVersion + HeaderSize + HeaderContent + FileSize + ImportedFile + AfterInsert
         target.write(Content)
 
-
 def CreateProperties():
-
     padding = Label(sidebar, text="", width=23).pack()
     secprops = Label(sidebar, text="Section Properties", width=22, relief=GROOVE).pack()
 
@@ -185,8 +185,9 @@ def CreateProperties():
     displaysecsize.pack(anchor="w")
     secsizevar.set("Size:")
 
-def DoubleClick():
+def GetSectionProperties():
     CreateProperties()
+    
     def GetProperties(event):
         CurSection = seclist.get(seclist.curselection())
         
@@ -196,7 +197,13 @@ def DoubleClick():
         sectionsize = "Size:", CurSection[2], "bytes"
         secsizevar.set(sectionsize)
         
-    seclist.bind('<Double-1>', GetProperties)
+    seclist.bind('<Button-1>', GetProperties)
+    seclist.pack()
+
+def OpenChildSections(file, root):
+    def GetSection(event):
+        ProcessRWSection(file, root)
+    seclist.bind('<Double-1>', GetSection)
     seclist.pack()
 
 def DisplayItemType(sectionlist, filelist):
@@ -206,8 +213,63 @@ def DisplayItemType(sectionlist, filelist):
     seclist = sectionlist
     return sectionlist
 
+def ProcessRWSection(file, root):
+    childbox = Toplevel(root)
+    global childlist
+
+    try:
+        CurSection = seclist.get(seclist.curselection())
+    except:
+        print("Child list")
+    try:
+        CurSection = childlist.get(childlist.curselection())
+    except:
+        print("Parent list")
+
+    scrollbar, childlist = CreateScrollbar(childbox)
+    childbox.iconbitmap('ui/rwlogo.ico')
+    childbox.title("Child Section View")
+    w = 350
+    h = 350
+    x = 150
+    y = 100
+    childbox.geometry("%dx%d+%d+%d" % (w, h, x, y))
+
+    with io.open(file, mode="rb") as rwfile:
+        rwfile.seek(CurSection[1], 0)
+        rwchunk = rwfile.read(CurSection[2])
+
+    with io.open(tempname, mode="wb") as rwchild:
+        rwchild.truncate()
+        rwchild.write(rwchunk)
+
+    with io.open(tempname, mode="rb") as rwchild:
+        fileSize = rwcore.GetFileSize(rwchild)
+        rwchild.seek(0, 0)
+        disprwtype = rwcore.GetSectionType(rwchild)
+        rwchild.seek(8, 0)
+        version = rwcore.UnpackRWVersion(rwchild)
+        SectionIndex = 0
+        filePos = 0
+        child = []
+        while filePos < fileSize:
+            filePos = rwchild.tell()
+            disptype = rwcore.GetSectionType(rwchild)
+            assetSize = rwcore.GetSectionSize(rwchild)
+            rwversion = rwcore.UnpackRWVersion(rwchild)
+            disptype = DisplayAssetNames(disptype, rwchild)
+            chunk = rwchild.read(assetSize)
+            child.append([disptype, filePos, assetSize, rwversion])
+            childlist.pack(expand=YES)
+            childlist.insert(END, child[SectionIndex])
+
+            SectionIndex += 1
+    RightClickMenu(childbox, childlist, tempname)
+    scrollbar, childlist = CloseScrollbar(scrollbar, childlist)
+
 def RightClickMenu(root, screenspace, rwfile):
     m = Menu(root, tearoff=0)
+    m.add_command(label="Scan Child Sections", command= lambda: ProcessRWSection(rwfile, root))
     m.add_command(label="Export Section", command= lambda: ExportSection(rwfile))
     m.add_command(label="Import Section", command= lambda: ImportSection(rwfile))
     m.add_command(label="Edit Section")
@@ -282,7 +344,6 @@ def DisplayFileProperties(disprwtype, fileSize, version, SectionIndex):
     displaysectionsnumber.config(font=("Segoe UI", 9))
     displaysectionsnumber.pack(anchor="w")
 
-
 root = InitializeInterface()
 
 def MainApp(root):
@@ -290,18 +351,12 @@ def MainApp(root):
     file = openfile()
     _, ext = splitext(file)
     with io.open(file, mode="rb") as rwfile:
-
         width, height = GetWindowSize(root)
-
         fileSize = rwcore.GetFileSize(rwfile)
-
         rwfile.seek(0, 0)
         disprwtype = rwcore.GetSectionType(rwfile)
-
         rwfile.seek(8, 0)
-
         version = rwcore.UnpackRWVersion(rwfile)
-
         filelist = []
         if disprwtype == 'CONTAINER':
             rwfile.seek(0, 0)
@@ -317,13 +372,12 @@ def MainApp(root):
             filelist.append([disptype, filePos, assetSize, rwversion])
             dispchunk = DisplayItemType(sectionlist, filelist[SectionIndex])
             SectionIndex += 1
-
-    
     DisplayFileProperties(disprwtype, fileSize, version, SectionIndex)
     root = SetFileTitle(file, root)
     scrollbar, sectionlist = CloseScrollbar(scrollbar, sectionlist)
     RightClickMenu(root, sectionlist, file)
-    DoubleClick()
+    OpenChildSections(file, root)
+    GetSectionProperties()
 
 UpdateInterface(root)
 
